@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>iSmart Computer Education</title>
+  <style>
+    body{font-family: Arial,Helvetica,sans-serif; padding:16px; background:#f5f7fb; color:#111}
+    .card{max-width:900px;margin:10px auto;padding:18px;background:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+    .row{display:flex;gap:16px;flex-wrap:wrap}
+    .left{flex:1 1 320px}
+    .right{width:260px;text-align:center}
+    input,button{padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-size:16px}
+    button{cursor:pointer;background:#2563eb;color:#fff;border:0}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{padding:8px;border:1px solid #e6eef8;text-align:left}
+    .photo{width:160px;height:200px;border-radius:6px;object-fit:cover;border:1px solid #ddd}
+    pre{background:#eef3ff;padding:10px;border-radius:6px;white-space:pre-wrap}
+    .notfound{color:#b91c1c;font-weight:700}
+    .meta{margin-top:12px}
+    .small{font-size:13px;color:#555}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>iSmart Computer Education</h2>
+    <p class="small">Enter Roll no. and click on <b>"Check"</b> </p>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <input id="rollInput" placeholder=" Enter Roll no. here " />
+      <button id="checkBtn">Check</button>
+      <button id="printBtn">Print</button>
+    </div>
+
+    <div id="result" style="margin-top:18px"></div>
+  </div>
+
+  <script>
+  // === SAMPLE DATABASE ===
+  // photo: URL or filename. Replace with real URLs or local file paths.
+  const STUDENTS = [
+    {
+      roll: "11152099",
+      name: "ANMOL MISHRA",
+      father: "WAKIL MISHRA",
+      course: "ADCA",
+      institute: "ADVANCE DIPLOMA IN COMPUTER APPLICATION",
+      session: "2025-26",
+      photo: "https://i.imgur.com/7bY3k0R.png", // replace with your marksheet-photo or relative path
+      subjects: [
+        ["Computer Fundamental",100,93],
+        ["Operating System",100,95],
+        ["MS Office",100,90],
+        ["Internet & Mail",100,87],
+        ["Coral Draw",100,91],
+        ["Photoshop",100,94],
+        ["Page Maker",100,93],
+        ["Tally Prime With GST",100,77],
+        ["HTML & Web Page",100,89],
+        ["CSS & CSS 3",100,87]
+      ],
+      grandTotal: 896
+    },
+    // add more objects for more students
+    {
+      roll: "22223333",
+      name: "SITA VERMA",
+      father: "RAJEEV VERMA",
+      course: "ADCA COURSE",
+      institute: "iSMART COMPUTER EDUCATION",
+      session: "2025-26",
+      photo: "https://i.imgur.com/placeholder.png",
+      subjects: [["Computer Fundamental",100,80],["Operating System",100,75]],
+      grandTotal:155
+    }
+  ];
+
+  // === UI logic ===
+  const rollInput = document.getElementById('rollInput');
+  const checkBtn = document.getElementById('checkBtn');
+  const resultDiv = document.getElementById('result');
+  const shareLinkEl = document.getElementById('shareLink');
+  const printBtn = document.getElementById('printBtn');
+
+  function findStudent(roll){
+    return STUDENTS.find(s => s.roll === String(roll).trim());
+  }
+
+  function renderStudent(s){
+    if(!s) {
+      resultDiv.innerHTML = `<div class="notfound">Record Not Found Wrong roll number.</div>`;
+      shareLinkEl.textContent = '—';
+      return;
+    }
+
+    // build subject rows
+    let rows = '';
+    s.subjects.forEach(sub => {
+      rows += `<tr><td>${escapeHtml(sub[0])}</td><td style="width:90px">${sub[1]}</td><td style="width:90px">${sub[2]}</td></tr>`;
+    });
+
+    const grade = calculateGrade(s.grandTotal, s.subjects.length ? (s.subjects.length*100) : 1000);
+
+    resultDiv.innerHTML = `
+      <div class="card" style="padding:16px">
+        <div class="row">
+          <div class="left">
+            <h3 style="margin:4px 0">${escapeHtml(s.institute)}</h3>
+            <div class="small meta">Roll No: <strong>${escapeHtml(s.roll)}</strong> &nbsp; | &nbsp; Session: ${escapeHtml(s.session)}</div>
+            <h2 style="margin-top:12px">${escapeHtml(s.name)}</h2>
+            <div class="small">Father's Name: ${escapeHtml(s.father)} &nbsp; | &nbsp; Course: ${escapeHtml(s.course)}</div>
+
+            <table aria-label="marks table">
+              <thead><tr><th>Subject</th><th>Max. Mark</th><th>Obt. Mark</th></tr></thead>
+              <tbody>${rows}</tbody>
+              <tfoot>
+                <tr><td><strong>Grand Total</strong></td><td><strong>${s.subjects.length*100}</strong></td><td><strong>${s.grandTotal}</strong></td></tr>
+              </tfoot>
+            </table>
+
+            
+          </div>
+
+          
+        </div>
+      </div>
+    `;
+
+    // update shareable link
+    const url = new URL(window.location.href);
+    url.searchParams.set('roll', s.roll);
+    shareLinkEl.textContent = url.toString();
+    shareLinkEl.title = url.toString();
+  }
+
+  function generateRawText(s){
+    // prepare simple text version of marksheet
+    let out = `Roll No: ${s.roll}\nName: ${s.name}\nFather: ${s.father}\nCourse: ${s.course}\nInstitute: ${s.institute}\nSession: ${s.session}\n\nSubjects:\n`;
+    s.subjects.forEach(sub => out += `${sub[0]} - ${sub[2]}/${sub[1]}\n`);
+    out += `\nGrand Total: ${s.grandTotal}\nGrade: ${calculateGrade(s.grandTotal, s.subjects.length*100)}`;
+    return out;
+  }
+
+  function calculateGrade(obt, total){
+    const pct = Math.round((obt/total)*100);
+    if(pct>=90) return 'S (90%+)';
+    if(pct>=80) return 'A (80-89%)';
+    if(pct>=70) return 'B (70-79%)';
+    if(pct>=60) return 'C (60-69%)';
+    if(pct>=50) return 'D (50-59%)';
+    return 'F (<50%)';
+  }
+
+  function escapeHtml(text){
+    if(!text && text!==0) return '';
+    return String(text).replace(/[&<>"']/g, function(m){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])});
+  }
+  function escapeAttr(text){ return escapeHtml(text) }
+
+  checkBtn.addEventListener('click', ()=> {
+    const roll = rollInput.value.trim();
+    if(!roll){ alert('Roll number daalo'); rollInput.focus(); return; }
+    const s = findStudent(roll);
+    renderStudent(s);
+  });
+
+  // press Enter to search
+  rollInput.addEventListener('keyup', e => {
+    if(e.key === 'Enter') checkBtn.click();
+  });
+
+  // Print
+  printBtn.addEventListener('click', ()=> {
+    window.print();
+  });
+
+  // On load, check URL param
+  (function(){
+    const params = new URLSearchParams(window.location.search);
+    const r = params.get('roll');
+    if(r){
+      rollInput.value = r;
+      const s = findStudent(r);
+      renderStudent(s);
+    }
+  })();
+  </script>
+</body>
+</html>
